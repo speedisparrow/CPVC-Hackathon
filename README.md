@@ -12,6 +12,28 @@ TomTom-backed API. The backend does **not** place AI calls.
 
 Build with **npm run build**.
 
+## Vercel deployment
+
+The root `vercel.json` explicitly selects the Next.js framework, runs `npm run build`,
+and uses `.next` as the build output. These file-based settings override the matching
+Vercel dashboard settings and keep this server-backed app on the Next.js deployment
+pipeline.
+
+Set the Vercel project's **Root Directory** to the repository root containing
+`package.json` and `vercel.json`. Add **TOMTOM_API_KEY** and optionally
+**MAX_ROUTE_CANDIDATES** to the deployment environment in Vercel; local `.env` files
+are ignored by Git. Merge the configuration into the production branch and deploy
+that new commit. Redeploying an older commit will not include the new configuration.
+
+If a Ready deployment still returns Vercel's `404 NOT_FOUND`, compare its unique
+deployment URL with the production domain and inspect the deployment's build output
+for `/` and the restaurant API routes. If only the production domain fails, check
+its assigned deployment under Domains. This app uses Next.js routing; it does not
+need an SPA fallback to `index.html`.
+
+References: [Vercel's 404 troubleshooting guide](https://vercel.com/kb/guide/why-is-my-deployed-project-giving-404)
+and [file-based configuration](https://vercel.com/docs/project-configuration/vercel-json).
+
 **MAX_ROUTE_CANDIDATES** controls the maximum number of restaurant candidates whose
 routed distances are requested. It defaults to 40 to keep API use predictable.
 
