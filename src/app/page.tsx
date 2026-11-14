@@ -1,7 +1,7 @@
 "use client";
 
-import Script from "next/script";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { RetellClient, type WebCallSession } from "retell-client-js-sdk";
 import restaurantData from "@/data/restaurants.json";
 
 const { restaurants } = restaurantData;
@@ -10,11 +10,18 @@ const retellVoicePublicKey = process.env.NEXT_PUBLIC_RETELL_VOICE_PUBLIC_KEY;
 const retellVoiceAgentId = process.env.NEXT_PUBLIC_RETELL_VOICE_AGENT_ID;
 const hasRetellWebVoice = Boolean(retellVoicePublicKey && retellVoiceAgentId);
 
+type VoiceCallStatus = "ready" | "connecting" | "live" | "ended" | "error";
+
 export default function Home() {
   const [step, setStep] = useState(1);
   const [distance, setDistance] = useState("5");
   const [customMiles, setCustomMiles] = useState("");
   const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
+  const [voiceCallStatus, setVoiceCallStatus] = useState<VoiceCallStatus>("ready");
+  const [isMuted, setIsMuted] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
+  const activeCall = useRef<WebCallSession | null>(null);
+  const voiceCallFailed = useRef(false);
 
   const isFinished = step > 2;
   const maxDistance = Number(distance === "custom" ? customMiles : distance);
@@ -25,6 +32,81 @@ export default function Home() {
     () => restaurants.filter((restaurant) => selectedRestaurants.includes(restaurant.id)),
     [selectedRestaurants],
   );
+
+  const endVoiceCall = async () => {
+    const call = activeCall.current;
+    if (!call) return;
+
+    try {
+      await call.end();
+    } catch {
+      // The call may already have been ended by the agent or connection.
+    } finally {
+      activeCall.current = null;
+      voiceCallFailed.current = false;
+      setIsMuted(false);
+      setVoiceCallStatus("ended");
+    }
+  };
+
+  const startVoiceCall = () => {
+    if (!retellVoicePublicKey || !retellVoiceAgentId) {
+      setVoiceError("Add the Retell public key and voice-agent ID, then restart the app or redeploy.");
+      setVoiceCallStatus("error");
+      return;
+    }
+
+    if (activeCall.current && activeCall.current.status !== "ended") return;
+
+    setVoiceError("");
+    setIsMuted(false);
+    voiceCallFailed.current = false;
+    setVoiceCallStatus("connecting");
+
+    const client = new RetellClient({ key: retellVoicePublicKey });
+    const call = client.createWebCall({
+      agent_id: retellVoiceAgentId,
+      metadata: {
+        selected_restaurants: selectedRestaurantDetails.map((restaurant) => restaurant.name),
+      },
+      hooks: {
+        onStatus: (status) => {
+          if (status === "live") setVoiceCallStatus("live");
+          if (status === "ended") {
+            activeCall.current = null;
+            setIsMuted(false);
+            if (!voiceCallFailed.current) setVoiceCallStatus("ended");
+          }
+        },
+        onEnd: () => {
+          activeCall.current = null;
+          setIsMuted(false);
+          if (!voiceCallFailed.current) setVoiceCallStatus("ended");
+        },
+        onError: (error) => {
+          activeCall.current = null;
+          voiceCallFailed.current = true;
+          setIsMuted(false);
+          setVoiceError(error.message || "The browser call could not start. Check your microphone and Retell key settings.");
+          setVoiceCallStatus("error");
+        },
+      },
+    });
+
+    activeCall.current = call;
+  };
+
+  const toggleMute = () => {
+    const call = activeCall.current;
+    if (!call || voiceCallStatus !== "live") return;
+
+    if (isMuted) {
+      call.unmute();
+    } else {
+      call.mute();
+    }
+    setIsMuted((muted) => !muted);
+  };
 
   return (
     <main className="setup-screen">
@@ -157,19 +239,52 @@ export default function Home() {
           </p>
 
           <div className="call-list">
-            <article className="call-card">
-              <div>
-                <h2>Browser voice demo</h2>
-                <p>Allow microphone access, then say: “The current wait is 20 minutes.”</p>
+            <article className="call-card voice-demo-card">
+              <div className="voice-demo-copy">
+                <p className="voice-demo-eyebrow">Live browser demo</p>
+                <h2>Ask the AI for the current wait</h2>
+                <p>Click start, allow microphone access, then have a teammate answer as the restaurant.</p>
               </div>
-              {hasRetellWebVoice ? (
-                <p className="call-status status-in-progress" role="status">
-                  Click <strong>Start wait-time demo</strong> in the Retell panel at the bottom-right of the screen.
-                </p>
-              ) : (
+
+              <div className="voice-demo-actions">
+                <button
+                  type="button"
+                  className="voice-primary-action"
+                  onClick={startVoiceCall}
+                  disabled={voiceCallStatus === "connecting" || voiceCallStatus === "live"}
+                >
+                  <span aria-hidden="true">●</span>
+                  {voiceCallStatus === "connecting" ? "Connecting…" : "Start wait-time demo"}
+                </button>
+
+                {voiceCallStatus === "live" && (
+                  <div className="voice-call-controls" aria-label="Call controls">
+                    <button type="button" className="voice-secondary-action" onClick={toggleMute}>
+                      {isMuted ? "Unmute microphone" : "Mute microphone"}
+                    </button>
+                    <button type="button" className="voice-end-action" onClick={endVoiceCall}>
+                      End call
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {voiceCallStatus === "ready" && hasRetellWebVoice && (
+                <p className="call-status" role="status">Ready when you are. No phone number is dialed.</p>
+              )}
+              {voiceCallStatus === "connecting" && (
+                <p className="call-status status-in-progress" role="status">Connecting to the AI and requesting microphone access…</p>
+              )}
+              {voiceCallStatus === "live" && (
+                <p className="call-status status-live" role="status">Live now. Say: “The current wait is 20 minutes.”</p>
+              )}
+              {(!hasRetellWebVoice || voiceCallStatus === "error") && (
                 <p className="call-error" role="alert">
-                  Add the Retell public key and voice-agent ID to enable the browser demo.
+                  {voiceError || "Add the Retell public key and voice-agent ID to enable the browser demo."}
                 </p>
+              )}
+              {voiceCallStatus === "ended" && (
+                <p className="call-status" role="status">Call ended. You can start another demo whenever you want.</p>
               )}
             </article>
             {selectedRestaurantDetails.map((restaurant) => (
@@ -182,20 +297,6 @@ export default function Home() {
               </article>
             ))}
           </div>
-
-          {hasRetellWebVoice && (
-            <Script
-              id="retell-web-voice"
-              strategy="afterInteractive"
-              type="module"
-              src="https://dashboard.retellai.com/retell-widget-v2.js"
-              data-voice-public-key={retellVoicePublicKey}
-              data-voice-agent-id={retellVoiceAgentId}
-              data-title="Restaurant wait-time demo"
-              data-fab-text="Start wait-time demo"
-              data-show-ai-popup="false"
-            />
-          )}
 
           <button type="button" className="setup-back" onClick={() => setStep(2)}>
             Change restaurants
