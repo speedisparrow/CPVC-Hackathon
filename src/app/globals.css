@@ -37,6 +37,161 @@ body {
 .setup-wizard-finished {
   opacity: 0;
   pointer-events: none;
+  position: absolute;
+}
+
+.call-panel {
+  width: 100%;
+  max-width: 660px;
+  animation: reveal 400ms ease-out;
+}
+
+.call-panel h1 {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(30px, 5vw, 44px);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+}
+
+.call-panel > .setup-step,
+.call-panel > .setup-description {
+  text-align: center;
+}
+
+.call-details {
+  display: grid;
+  grid-template-columns: auto 88px auto minmax(112px, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto 18px;
+  padding: 16px;
+  border: 1px solid #dedede;
+  border-radius: 10px;
+  color: #666;
+  font-size: 13px;
+}
+
+.call-details input {
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px;
+  border: 1px solid #dedede;
+  border-radius: 7px;
+  color: #171717;
+  font: inherit;
+}
+
+.call-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 18px;
+  color: #555;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.call-consent input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: #171717;
+}
+
+.call-list {
+  display: grid;
+  gap: 12px;
+}
+
+.call-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #dedede;
+  border-radius: 10px;
+}
+
+.call-card h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.call-card > div > p,
+.call-status p,
+.call-placeholder,
+.call-error {
+  margin: 5px 0 0;
+  color: #777;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.call-card button {
+  min-height: 46px;
+  border: 0;
+  border-radius: 8px;
+  background: #171717;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.call-card button:hover:not(:disabled) {
+  background: #333;
+}
+
+.call-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.call-placeholder {
+  color: #9a762b;
+}
+
+.call-error {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff3f2;
+  color: #a0322a;
+}
+
+.call-status {
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: #f6f6f6;
+  color: #333;
+  font-size: 13px;
+}
+
+.call-status.status-in-progress,
+.call-status.status-ringing,
+.call-status.status-queued {
+  background: #f1f5ff;
+  color: #294781;
+}
+
+.call-status.status-failed,
+.call-status.status-busy,
+.call-status.status-no-answer {
+  background: #fff3f2;
+  color: #a0322a;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .setup-step {
@@ -253,6 +408,10 @@ body {
   .restaurant-image {
     width: 44px;
     height: 44px;
+  }
+
+  .call-details {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
