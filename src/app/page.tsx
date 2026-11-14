@@ -4,16 +4,23 @@ import { useState } from "react";
 import restaurantData from "@/data/restaurants.json";
 
 const { restaurants } = restaurantData;
+const cuisines = [
+  ...new Set(restaurants.map((restaurant) => restaurant.cuisine)),
+].sort((a, b) => a.localeCompare(b));
 
 export default function Home() {
   const [step, setStep] = useState(1);
   const [distance, setDistance] = useState("5");
   const [customMiles, setCustomMiles] = useState("");
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
-  const isFinished = step > 2;
+  const isFinished = step > 3;
   const maxDistance = Number(distance === "custom" ? customMiles : distance);
   const filteredRestaurants = restaurants.filter(
-    (restaurant) => restaurant.distance <= maxDistance,
+    (restaurant) =>
+      restaurant.distance <= maxDistance &&
+      (selectedCuisines.length === 0 ||
+        selectedCuisines.includes(restaurant.cuisine)),
   );
 
   return (
@@ -25,19 +32,26 @@ export default function Home() {
         inert={isFinished}
       >
         <p className="setup-step" aria-live="polite">
-          Step {Math.min(step, 2)} of 2
+          Step {Math.min(step, 3)} of 3
         </p>
         <h1 id="setup-title">
-          {step === 1 ? "How far would you go?" : "Where would you like to go?"}
+          {step === 1
+            ? "How far would you go?"
+            : step === 2
+              ? "What are you in the mood for?"
+              : "Where would you like to go?"}
         </h1>
         <p className="setup-description">
           {step === 1
             ? "Choose your maximum distance in miles."
-            : "Pick one or more restaurants."}
+            : step === 2
+              ? "Choose one or more cuisines you’d like."
+              : "Pick one or more restaurants."}
         </p>
 
         {step === 1 ? (
           <form
+            key="distance"
             className="setup-distance"
             onSubmit={(event) => {
               event.preventDefault();
@@ -79,16 +93,76 @@ export default function Home() {
             )}
             <button type="submit">Continue</button>
           </form>
+        ) : step === 2 ? (
+          <form
+            key="cuisine"
+            className="setup-distance setup-cuisines"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSelectedRestaurants([]);
+              setStep(3);
+            }}
+          >
+            <span className="restaurant-label" id="cuisines-label">
+              Cuisines
+            </span>
+            <div
+              className="cuisine-grid"
+              role="group"
+              aria-labelledby="cuisines-label"
+              aria-describedby="cuisine-hint"
+            >
+              {cuisines.map((type) => (
+                <label key={type} className="cuisine-option">
+                  <span className="cuisine-image" aria-hidden="true" />
+                  <span className="cuisine-option-footer">
+                    <span>{type}</span>
+                    <input
+                      type="checkbox"
+                      name="cuisines"
+                      value={type}
+                      checked={selectedCuisines.includes(type)}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        setSelectedCuisines((current) =>
+                          checked
+                            ? [...current, type]
+                            : current.filter((selected) => selected !== type),
+                        );
+                      }}
+                    />
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="restaurant-note" id="cuisine-hint">
+              Leave all unchecked for any cuisine.
+            </p>
+            <button type="submit">Continue</button>
+            <button
+              type="button"
+              className="setup-back"
+              onClick={() => setStep(1)}
+            >
+              Change distance
+            </button>
+          </form>
         ) : (
           <form
+            key="restaurants"
             className="setup-distance setup-restaurants"
             onSubmit={(event) => {
               event.preventDefault();
-              if (selectedRestaurants.length > 0) setStep(3);
+              if (selectedRestaurants.length > 0) setStep(4);
             }}
           >
             <span className="restaurant-label" id="restaurant-label">
-              Restaurants within {maxDistance} miles
+              {selectedCuisines.length === 0
+                ? "All cuisines"
+                : selectedCuisines.length === 1
+                  ? selectedCuisines[0]
+                  : `${selectedCuisines.length} cuisines`}{" "}
+              · Within {maxDistance} miles
             </span>
             <div
               className="restaurant-list"
@@ -127,8 +201,8 @@ export default function Home() {
               ))}
               {filteredRestaurants.length === 0 && (
                 <p className="restaurant-empty" role="status">
-                  No restaurants within {maxDistance} miles. Try a larger
-                  distance.
+                  No restaurants match your choices within {maxDistance} miles.
+                  Try another cuisine or a larger distance.
                 </p>
               )}
             </div>
@@ -144,15 +218,15 @@ export default function Home() {
             <button
               type="button"
               className="setup-back"
-              onClick={() => setStep(1)}
+              onClick={() => setStep(2)}
             >
-              Change distance
+              Change cuisine
             </button>
           </form>
         )}
 
         <div className="setup-progress" aria-hidden="true">
-          {[1, 2].map((number) => (
+          {[1, 2, 3].map((number) => (
             <span key={number} className={number <= step ? "filled" : ""} />
           ))}
         </div>
