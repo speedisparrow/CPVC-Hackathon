@@ -1,0 +1,344 @@
+﻿@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.setup-screen {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 32px 24px;
+  background: #fff;
+}
+
+.setup-wizard {
+  width: 100%;
+  max-width: 660px;
+  text-align: center;
+  opacity: 1;
+  transition: opacity 800ms ease;
+}
+
+.setup-wizard-finished {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.setup-step {
+  margin: 0 0 20px;
+  color: #888;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.setup-wizard h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 44px);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 1.2;
+}
+
+.setup-description {
+  margin: 14px 0 40px;
+  color: #888;
+  font-size: 15px;
+}
+
+.setup-distance {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 360px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.setup-distance label {
+  color: #666;
+  font-size: 13px;
+}
+
+.setup-distance select,
+.setup-distance input:not([type="checkbox"]) {
+  width: 100%;
+  min-height: 60px;
+  padding: 16px;
+  border: 1px solid #dedede;
+  border-radius: 10px;
+  background: #fff;
+  color: #171717;
+  font: inherit;
+  font-size: 18px;
+}
+
+.setup-distance select {
+  cursor: pointer;
+}
+
+.setup-custom-distance {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.setup-distance button {
+  min-height: 52px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #171717;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.setup-distance button:hover:not(:disabled) {
+  background: #333;
+}
+
+.setup-distance select:focus-visible,
+.setup-distance input:focus-visible,
+.setup-distance button:focus-visible {
+  outline: 2px solid #171717;
+  outline-offset: 4px;
+}
+
+.setup-distance button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.setup-restaurants {
+  max-width: 420px;
+}
+
+.location-actions {
+  text-align: center;
+}
+
+.location-actions .restaurant-note {
+  line-height: 1.7;
+}
+
+.location-error {
+  margin: 0;
+  color: #a23e32;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.setup-cuisines {
+  max-width: 480px;
+}
+
+.cuisine-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-height: min(440px, 50svh);
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.setup-distance .cuisine-option {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dedede;
+  border-radius: 10px;
+  color: #171717;
+  cursor: pointer;
+}
+
+.cuisine-option:hover {
+  background: #fafafa;
+}
+
+.cuisine-option:has(input:checked) {
+  border-color: #171717;
+  background: #fafafa;
+}
+
+.cuisine-image {
+  display: block;
+  height: 72px;
+  border: 1px solid #eaeaea;
+  border-radius: 6px;
+  background: #f3f3f3;
+}
+
+.cuisine-option-footer {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.cuisine-option-footer > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cuisine-option input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #171717;
+  cursor: pointer;
+}
+.restaurant-label {
+  color: #666;
+  font-size: 13px;
+}
+.restaurant-list {
+  max-height: min(440px, 50svh);
+  border: 1px solid #dedede;
+  border-radius: 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.setup-distance .restaurant-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 16px;
+  cursor: pointer;
+  color: #171717;
+}
+.restaurant-row + .restaurant-row {
+  border-top: 1px solid #eee;
+}
+.restaurant-row:hover {
+  background: #fafafa;
+}
+.restaurant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.restaurant-image {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border: 1px solid #eaeaea;
+  border-radius: 8px;
+  background: #f3f3f3;
+}
+
+.restaurant-note {
+  margin: 0;
+  color: #888;
+  font-size: 12px;
+}
+
+.restaurant-empty {
+  margin: 0;
+  padding: 24px 16px;
+  color: #888;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.setup-distance .setup-back {
+  min-height: 36px;
+  margin-top: 0;
+  background: transparent;
+  color: #666;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.setup-distance .setup-back:hover {
+  background: transparent;
+  color: #171717;
+}
+.restaurant-info strong {
+  font-size: 16px;
+  font-weight: 500;
+}
+.restaurant-info > span {
+  color: #888;
+  font-size: 13px;
+}
+.restaurant-rating {
+  color: #9a762b;
+}
+
+.restaurant-info .restaurant-phone {
+  color: #666;
+  font-size: 12px;
+}
+.restaurant-row input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: #171717;
+  cursor: pointer;
+}
+
+.setup-progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 36px;
+}
+
+.setup-progress span {
+  width: 28px;
+  height: 3px;
+  border-radius: 3px;
+  background: #eaeaea;
+}
+
+.setup-progress .filled {
+  background: #171717;
+}
+
+@media (max-width: 380px) {
+  .setup-distance .restaurant-row {
+    grid-template-columns: 44px minmax(0, 1fr) 20px;
+    gap: 10px;
+    padding: 16px 12px;
+  }
+  .restaurant-image {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-wizard {
+    transition: none;
+  }
+}
