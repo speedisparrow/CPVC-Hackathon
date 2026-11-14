@@ -5,6 +5,12 @@ Next.js with TypeScript, App Router, Tailwind CSS, and ESLint.
 Run locally: npm run dev
 Build: npm run build
 
+## Location access
+
+The site starts with a location-permission screen. **Use my location** calls the browser’s Geolocation API and opens its permission prompt when access has not already been decided. Successful coordinates are kept only in React state for the current session; they are not stored or sent to a backend. The restaurant list still uses the JSON’s sample distances, not distances calculated from those coordinates.
+
+Users can continue without sharing their location. Denied permission, unsupported browsers, unavailable positions, and timeouts show a message with a fallback. Skipping ignores any pending location response. Geolocation requires HTTPS or a trusted local origin such as `localhost`.
+
 ## Mock restaurant data
 
 `src/data/restaurants.json` contains 100 restaurant entries and metadata describing the mock fields and name sources. The page imports this file directly.

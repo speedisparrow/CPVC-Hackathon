@@ -131,6 +131,21 @@ body {
   max-width: 420px;
 }
 
+.location-actions {
+  text-align: center;
+}
+
+.location-actions .restaurant-note {
+  line-height: 1.7;
+}
+
+.location-error {
+  margin: 0;
+  color: #a23e32;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .setup-cuisines {
   max-width: 480px;
 }

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import restaurantData from "@/data/restaurants.json";
 
 const { restaurants } = restaurantData;
@@ -9,7 +9,14 @@ const cuisines = [
 ].sort((a, b) => a.localeCompare(b));
 
 export default function Home() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
+  const [startingLocation, setStartingLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  const locationRequest = useRef(0);
   const [distance, setDistance] = useState("5");
   const [customMiles, setCustomMiles] = useState("");
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
@@ -22,6 +29,102 @@ export default function Home() {
       (selectedCuisines.length === 0 ||
         selectedCuisines.includes(restaurant.cuisine)),
   );
+
+  function requestLocation() {
+    setLocationError("");
+
+    if (!window.isSecureContext) {
+      setLocationError(
+        "Location access isn’t available on this connection. You can continue without it.",
+      );
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationError(
+        "Your browser doesn’t support location access. You can continue without it.",
+      );
+      return;
+    }
+
+    const requestId = ++locationRequest.current;
+    setIsLocating(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (requestId !== locationRequest.current) return;
+        setStartingLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setIsLocating(false);
+        setStep(1);
+      },
+      (error) => {
+        if (requestId !== locationRequest.current) return;
+        setIsLocating(false);
+        if (error.code === 1) {
+          setLocationError(
+            "Location access was denied. Allow it in your browser’s site settings, or continue without it.",
+          );
+        } else if (error.code === 3) {
+          setLocationError(
+            "Finding your location took too long. Try again, or continue without it.",
+          );
+        } else {
+          setLocationError(
+            "Your location couldn’t be found. Try again, or continue without it.",
+          );
+        }
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+    );
+  }
+
+  if (step === 0) {
+    return (
+      <main className="setup-screen">
+        <section className="setup-wizard" aria-labelledby="location-title">
+          <p className="setup-step">Before we start</p>
+          <h1 id="location-title">Where are you starting from?</h1>
+          <p className="setup-description">
+            Share your location to set your starting point.
+          </p>
+          <div className="setup-distance location-actions">
+            <button
+              type="button"
+              onClick={requestLocation}
+              disabled={isLocating}
+              aria-busy={isLocating}
+              aria-describedby="location-note"
+            >
+              {isLocating ? "Finding your location…" : "Use my location"}
+            </button>
+            {locationError && (
+              <p className="location-error" role="alert">
+                {locationError}
+              </p>
+            )}
+            <button
+              type="button"
+              className="setup-back"
+              onClick={() => {
+                locationRequest.current += 1;
+                setIsLocating(false);
+                setStep(1);
+              }}
+            >
+              Continue without location
+            </button>
+            <p className="restaurant-note" id="location-note">
+              Your location stays in this session. Restaurant distances are
+              sample values for now.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="setup-screen">
@@ -60,6 +163,9 @@ export default function Home() {
               setStep(2);
             }}
           >
+            {startingLocation && (
+              <p className="restaurant-note">Using your current location.</p>
+            )}
             <label htmlFor="distance">Miles away</label>
             <select
               id="distance"
