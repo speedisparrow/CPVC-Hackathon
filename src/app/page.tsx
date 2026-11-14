@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useUserLocation } from "@/components/location-provider";
-// import { RestaurantImage } from "@/components/restaurant-image";
-import type { Restaurant } from "@/lib/restaurants/types";
+import { useMemo, useRef, useState } from "react";
+import { RetellClient, type WebCallSession } from "retell-client-js-sdk";
+import restaurantData from "@/data/restaurants.json";
 
 type DiscoverResponse = {
   restaurants: Restaurant[];
@@ -11,25 +10,25 @@ type DiscoverResponse = {
   error?: string;
 };
 
+const retellVoicePublicKey = process.env.NEXT_PUBLIC_RETELL_VOICE_PUBLIC_KEY;
+const retellVoiceAgentId = process.env.NEXT_PUBLIC_RETELL_VOICE_AGENT_ID;
+const hasRetellWebVoice = Boolean(retellVoicePublicKey && retellVoiceAgentId);
+
+type VoiceCallStatus = "ready" | "connecting" | "live" | "ended" | "error";
+
 export default function Home() {
   const [step, setStep] = useState(0);
   const [distance, setDistance] = useState("5");
   const [customMiles, setCustomMiles] = useState("");
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
-  const [cuisines, setCuisines] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const confirmationRef = useRef<HTMLDialogElement>(null);
-  const waitingTitleRef = useRef<HTMLHeadingElement>(null);
-  const {
-    location,
-    status: locationStatus,
-    error: locationError,
-    requestLocation,
-  } = useUserLocation();
+  const [voiceCallStatus, setVoiceCallStatus] = useState<VoiceCallStatus>("ready");
+  const [isMuted, setIsMuted] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
+  const activeCall = useRef<WebCallSession | null>(null);
+  const voiceCallFailed = useRef(false);
 
+  const isFinished = step > 2;
   const maxDistance = Number(distance === "custom" ? customMiles : distance);
   const filteredRestaurants = restaurants.filter(
     (restaurant) =>
@@ -39,6 +38,85 @@ export default function Home() {
   const restaurantsToConfirm = filteredRestaurants.filter((restaurant) =>
     selectedRestaurants.includes(restaurant.id),
   );
+  const selectedRestaurantDetails = useMemo(
+    () => restaurants.filter((restaurant) => selectedRestaurants.includes(restaurant.id)),
+    [selectedRestaurants],
+  );
+
+  const endVoiceCall = async () => {
+    const call = activeCall.current;
+    if (!call) return;
+
+    try {
+      await call.end();
+    } catch {
+      // The call may already have been ended by the agent or connection.
+    } finally {
+      activeCall.current = null;
+      voiceCallFailed.current = false;
+      setIsMuted(false);
+      setVoiceCallStatus("ended");
+    }
+  };
+
+  const startVoiceCall = () => {
+    if (!retellVoicePublicKey || !retellVoiceAgentId) {
+      setVoiceError("Add the Retell public key and voice-agent ID, then restart the app or redeploy.");
+      setVoiceCallStatus("error");
+      return;
+    }
+
+    if (activeCall.current && activeCall.current.status !== "ended") return;
+
+    setVoiceError("");
+    setIsMuted(false);
+    voiceCallFailed.current = false;
+    setVoiceCallStatus("connecting");
+
+    const client = new RetellClient({ key: retellVoicePublicKey });
+    const call = client.createWebCall({
+      agent_id: retellVoiceAgentId,
+      metadata: {
+        selected_restaurants: selectedRestaurantDetails.map((restaurant) => restaurant.name),
+      },
+      hooks: {
+        onStatus: (status) => {
+          if (status === "live") setVoiceCallStatus("live");
+          if (status === "ended") {
+            activeCall.current = null;
+            setIsMuted(false);
+            if (!voiceCallFailed.current) setVoiceCallStatus("ended");
+          }
+        },
+        onEnd: () => {
+          activeCall.current = null;
+          setIsMuted(false);
+          if (!voiceCallFailed.current) setVoiceCallStatus("ended");
+        },
+        onError: (error) => {
+          activeCall.current = null;
+          voiceCallFailed.current = true;
+          setIsMuted(false);
+          setVoiceError(error.message || "The browser call could not start. Check your microphone and Retell key settings.");
+          setVoiceCallStatus("error");
+        },
+      },
+    });
+
+    activeCall.current = call;
+  };
+
+  const toggleMute = () => {
+    const call = activeCall.current;
+    if (!call || voiceCallStatus !== "live") return;
+
+    if (isMuted) {
+      call.unmute();
+    } else {
+      call.mute();
+    }
+    setIsMuted((muted) => !muted);
+  };
 
   useEffect(() => {
     if (step === 4) waitingTitleRef.current?.focus();
@@ -326,8 +404,8 @@ export default function Home() {
             className="setup-distance setup-restaurants"
             onSubmit={(event) => {
               event.preventDefault();
-              if (restaurantsToConfirm.length > 0)
-                confirmationRef.current?.showModal();
+              if (selectedRestaurants.length === 0) return;
+              setStep(3);
             }}
           >
             <span className="restaurant-label" id="restaurant-label">
@@ -338,11 +416,7 @@ export default function Home() {
                   : selectedCuisines.length + " cuisines"}{" "}
               · Within {maxDistance} miles
             </span>
-            <div
-              className="restaurant-list"
-              role="group"
-              aria-labelledby="restaurant-label"
-            >
+            <div className="restaurant-list" role="group" aria-labelledby="restaurant-label">
               {filteredRestaurants.map((restaurant) => (
                 <label className="restaurant-row" key={restaurant.id}>
                   {/* <RestaurantImage
@@ -352,11 +426,7 @@ export default function Home() {
                   <span className="restaurant-info">
                     <strong>{restaurant.name}</strong>
                     <span>
-                      {restaurant.distanceMiles.toFixed(2)} miles ·{" "}
-                      {restaurant.cuisines.join(", ") || "Restaurant"}
-                    </span>
-                    <span className="restaurant-phone">
-                      {restaurant.phone || "Phone unavailable"}
+                      <span className="restaurant-rating">★ {restaurant.rating}</span> · {restaurant.cuisine}
                     </span>
                     {restaurant.openingHoursSourceUrl && (
                       <span>Hours from restaurant website</span>
@@ -376,9 +446,7 @@ export default function Home() {
                     onChange={(event) => {
                       const checked = event.target.checked;
                       setSelectedRestaurants((current) =>
-                        checked
-                          ? [...current, restaurant.id]
-                          : current.filter((id) => id !== restaurant.id),
+                        checked ? [...current, restaurant.id] : current.filter((id) => id !== restaurant.id),
                       );
                     }}
                   />
@@ -386,20 +454,14 @@ export default function Home() {
               ))}
               {filteredRestaurants.length === 0 && (
                 <p className="restaurant-empty" role="status">
-                  No restaurants match your choices within {maxDistance} miles.
-                  Try another cuisine or a larger distance.
+                  No restaurants within {maxDistance} miles. Try a larger distance.
                 </p>
               )}
             </div>
-            <button type="submit" disabled={selectedRestaurants.length === 0}>
-              Continue
-            </button>
-            <button
-              type="button"
-              className="setup-back"
-              onClick={() => setStep(2)}
-            >
-              Change cuisine
+            <p className="restaurant-note">Ratings and phone numbers are placeholders.</p>
+            <button type="submit" disabled={selectedRestaurants.length === 0}>Continue</button>
+            <button type="button" className="setup-back" onClick={() => setStep(1)}>
+              Change distance
             </button>
           </form>
         )}
@@ -410,94 +472,80 @@ export default function Home() {
           ))}
         </div>
       </section>
-      <dialog
-        ref={confirmationRef}
-        className="confirmation-dialog"
-        aria-labelledby="confirmation-title"
-        aria-describedby="confirmation-description"
-      >
-        <div className="confirmation-content">
-          <button
-            type="button"
-            className="confirmation-close"
-            aria-label="Close confirmation"
-            onClick={() => confirmationRef.current?.close()}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              aria-hidden="true"
-            >
-              <path d="m6 6 12 12M6 18 18 6" />
-            </svg>
-          </button>
-          <p className="setup-step">One last check</p>
-          <h2 id="confirmation-title">Confirm your choices.</h2>
-          <p className="confirmation-description" id="confirmation-description">
-            Review the sample details for each selected restaurant.
+
+      {isFinished && (
+        <section className="call-panel" aria-labelledby="call-title">
+          <p className="setup-step">Availability assistant</p>
+          <h1 id="call-title">Check before you go</h1>
+          <p className="setup-description">
+            Start a browser voice demo, then have a teammate answer as the restaurant. The AI only asks about wait time and cannot make a reservation or spend money.
           </p>
-          <div className="confirmation-restaurants">
-            {restaurantsToConfirm.map((restaurant) => (
-              <article key={restaurant.id} className="confirmation-card">
-                <div className="confirmation-restaurant-heading">
-                  {/* <RestaurantImage
-                    name={restaurant.name}
-                    photoUrl={restaurant.photoUrl}
-                  /> */}
-                  <div>
-                    <h3>{restaurant.name}</h3>
-                    <p>{restaurant.phone || "Phone unavailable"}</p>
-                    {restaurant.isOpenNow === false && (
-                      <p className="restaurant-closed">May be closed</p>
-                    )}
+
+          <div className="call-list">
+            <article className="call-card voice-demo-card">
+              <div className="voice-demo-copy">
+                <p className="voice-demo-eyebrow">Live browser demo</p>
+                <h2>Ask the AI for the current wait</h2>
+                <p>Click start, allow microphone access, then have a teammate answer as the restaurant.</p>
+              </div>
+
+              <div className="voice-demo-actions">
+                <button
+                  type="button"
+                  className="voice-primary-action"
+                  onClick={startVoiceCall}
+                  disabled={voiceCallStatus === "connecting" || voiceCallStatus === "live"}
+                >
+                  <span aria-hidden="true">●</span>
+                  {voiceCallStatus === "connecting" ? "Connecting…" : "Start wait-time demo"}
+                </button>
+
+                {voiceCallStatus === "live" && (
+                  <div className="voice-call-controls" aria-label="Call controls">
+                    <button type="button" className="voice-secondary-action" onClick={toggleMute}>
+                      {isMuted ? "Unmute microphone" : "Mute microphone"}
+                    </button>
+                    <button type="button" className="voice-end-action" onClick={endVoiceCall}>
+                      End call
+                    </button>
                   </div>
+                )}
+              </div>
+
+              {voiceCallStatus === "ready" && hasRetellWebVoice && (
+                <p className="call-status" role="status">Ready when you are. No phone number is dialed.</p>
+              )}
+              {voiceCallStatus === "connecting" && (
+                <p className="call-status status-in-progress" role="status">Connecting to the AI and requesting microphone access…</p>
+              )}
+              {voiceCallStatus === "live" && (
+                <p className="call-status status-live" role="status">Live now. Say: “The current wait is 20 minutes.”</p>
+              )}
+              {(!hasRetellWebVoice || voiceCallStatus === "error") && (
+                <p className="call-error" role="alert">
+                  {voiceError || "Add the Retell public key and voice-agent ID to enable the browser demo."}
+                </p>
+              )}
+              {voiceCallStatus === "ended" && (
+                <p className="call-status" role="status">Call ended. You can start another demo whenever you want.</p>
+              )}
+            </article>
+            {selectedRestaurantDetails.map((restaurant) => (
+              <article className="call-card" key={restaurant.id}>
+                <div>
+                  <h2>{restaurant.name}</h2>
+                  <p>{restaurant.cuisine}</p>
                 </div>
-                <p className="confirmation-detail-label">Placeholder details</p>
-                <dl className="confirmation-details">
-                  <div>
-                    <dt>Party size</dt>
-                    <dd>4 people</dd>
-                  </div>
-                  <div>
-                    <dt>Arrival</dt>
-                    <dd>As soon as possible</dd>
-                  </div>
-                  <div>
-                    <dt>Max wait</dt>
-                    <dd>15 minutes</dd>
-                  </div>
-                </dl>
+                <p className="call-placeholder">Demo context only—no phone number is dialed.</p>
               </article>
             ))}
           </div>
-          <p className="restaurant-note">
-            Sample details only. No calls or reservations are made.
-          </p>
-          <div className="confirmation-actions">
-            <button
-              type="button"
-              onClick={() => confirmationRef.current?.close()}
-            >
-              Edit selections
-            </button>
-            <button
-              type="button"
-              className="confirmation-submit"
-              disabled={restaurantsToConfirm.length === 0}
-              onClick={() => {
-                confirmationRef.current?.close();
-                setStep(4);
-              }}
-            >
-              Make call(s)
-            </button>
-          </div>
-        </div>
-      </dialog>
+
+          <button type="button" className="setup-back" onClick={() => setStep(2)}>
+            Change restaurants
+          </button>
+        </section>
+      )}
     </main>
   );
 }
