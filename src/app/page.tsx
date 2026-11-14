@@ -1,69 +1,162 @@
-import Image from "next/image";
+﻿"use client";
+
+import { useState } from "react";
+import restaurantData from "@/data/restaurants.json";
+
+const { restaurants } = restaurantData;
 
 export default function Home() {
+  const [step, setStep] = useState(1);
+  const [distance, setDistance] = useState("5");
+  const [customMiles, setCustomMiles] = useState("");
+  const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
+  const isFinished = step > 2;
+  const maxDistance = Number(distance === "custom" ? customMiles : distance);
+  const filteredRestaurants = restaurants.filter(
+    (restaurant) => restaurant.distance <= maxDistance,
+  );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="setup-screen">
+      <section
+        className={`setup-wizard${isFinished ? " setup-wizard-finished" : ""}`}
+        aria-labelledby="setup-title"
+        aria-hidden={isFinished}
+        inert={isFinished}
+      >
+        <p className="setup-step" aria-live="polite">
+          Step {Math.min(step, 2)} of 2
+        </p>
+        <h1 id="setup-title">
+          {step === 1 ? "How far would you go?" : "Where would you like to go?"}
+        </h1>
+        <p className="setup-description">
+          {step === 1
+            ? "Choose your maximum distance in miles."
+            : "Pick one or more restaurants."}
+        </p>
+
+        {step === 1 ? (
+          <form
+            className="setup-distance"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!Number.isFinite(maxDistance) || maxDistance <= 0) return;
+              setSelectedRestaurants([]);
+              setStep(2);
+            }}
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <label htmlFor="distance">Miles away</label>
+            <select
+              id="distance"
+              name="distance"
+              value={distance}
+              onChange={(event) => setDistance(event.target.value)}
+            >
+              {[5, 10, 15, 20].map((miles) => (
+                <option key={miles} value={miles}>
+                  {miles} miles away
+                </option>
+              ))}
+              <option value="custom">Custom distance</option>
+            </select>
+            {distance === "custom" && (
+              <div className="setup-custom-distance">
+                <label htmlFor="custom-miles">Custom distance (miles)</label>
+                <input
+                  id="custom-miles"
+                  name="customMiles"
+                  type="number"
+                  inputMode="decimal"
+                  min="0.1"
+                  step="any"
+                  placeholder="Enter miles"
+                  value={customMiles}
+                  onChange={(event) => setCustomMiles(event.target.value)}
+                  required
+                />
+              </div>
+            )}
+            <button type="submit">Continue</button>
+          </form>
+        ) : (
+          <form
+            className="setup-distance setup-restaurants"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (selectedRestaurants.length > 0) setStep(3);
+            }}
           >
-            Documentation
-          </a>
+            <span className="restaurant-label" id="restaurant-label">
+              Restaurants within {maxDistance} miles
+            </span>
+            <div
+              className="restaurant-list"
+              role="group"
+              aria-labelledby="restaurant-label"
+            >
+              {filteredRestaurants.map((restaurant) => (
+                <label className="restaurant-row" key={restaurant.id}>
+                  <span className="restaurant-image" aria-hidden="true" />
+                  <span className="restaurant-info">
+                    <strong>{restaurant.name}</strong>
+                    <span>
+                      <span className="restaurant-rating">
+                        ★ {restaurant.rating}
+                      </span>{" "}
+                      · {restaurant.cuisine}
+                    </span>
+                    <span className="restaurant-phone">{restaurant.phone}</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    name="restaurants"
+                    value={restaurant.id}
+                    aria-label={restaurant.name}
+                    checked={selectedRestaurants.includes(restaurant.id)}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setSelectedRestaurants((current) =>
+                        checked
+                          ? [...current, restaurant.id]
+                          : current.filter((id) => id !== restaurant.id),
+                      );
+                    }}
+                  />
+                </label>
+              ))}
+              {filteredRestaurants.length === 0 && (
+                <p className="restaurant-empty" role="status">
+                  No restaurants within {maxDistance} miles. Try a larger
+                  distance.
+                </p>
+              )}
+            </div>
+            <p className="restaurant-note">
+              Ratings and phone numbers are placeholders.
+            </p>
+            <button
+              type="submit"
+              disabled={selectedRestaurants.length === 0 || isFinished}
+            >
+              Continue
+            </button>
+            <button
+              type="button"
+              className="setup-back"
+              onClick={() => setStep(1)}
+            >
+              Change distance
+            </button>
+          </form>
+        )}
+
+        <div className="setup-progress" aria-hidden="true">
+          {[1, 2].map((number) => (
+            <span key={number} className={number <= step ? "filled" : ""} />
+          ))}
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
