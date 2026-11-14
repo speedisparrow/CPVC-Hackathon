@@ -130,6 +130,87 @@ body {
 .setup-restaurants {
   max-width: 420px;
 }
+
+.location-actions {
+  text-align: center;
+}
+
+.location-actions .restaurant-note {
+  line-height: 1.7;
+}
+
+.location-error {
+  margin: 0;
+  color: #a23e32;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.setup-cuisines {
+  max-width: 480px;
+}
+
+.cuisine-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-height: min(440px, 50svh);
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.setup-distance .cuisine-option {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dedede;
+  border-radius: 10px;
+  color: #171717;
+  cursor: pointer;
+}
+
+.cuisine-option:hover {
+  background: #fafafa;
+}
+
+.cuisine-option:has(input:checked) {
+  border-color: #171717;
+  background: #fafafa;
+}
+
+.cuisine-image {
+  display: block;
+  height: 72px;
+  border: 1px solid #eaeaea;
+  border-radius: 6px;
+  background: #f3f3f3;
+}
+
+.cuisine-option-footer {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.cuisine-option-footer > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cuisine-option input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #171717;
+  cursor: pointer;
+}
 .restaurant-label {
   color: #666;
   font-size: 13px;

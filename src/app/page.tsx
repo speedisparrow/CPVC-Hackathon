@@ -11,11 +11,13 @@ type DiscoverResponse = {
 };
 
 export default function Home() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [distance, setDistance] = useState("5");
   const [customMiles, setCustomMiles] = useState("");
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [cuisines, setCuisines] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const {
@@ -24,8 +26,16 @@ export default function Home() {
     error: locationError,
     requestLocation,
   } = useUserLocation();
-  const isFinished = step > 2;
+
+  const isFinished = step > 3;
   const maxDistance = Number(distance === "custom" ? customMiles : distance);
+  const filteredRestaurants = restaurants.filter(
+    (restaurant) =>
+      selectedCuisines.length === 0 ||
+      restaurant.cuisines.some((cuisine) =>
+        selectedCuisines.includes(cuisine),
+      ),
+  );
 
   async function loadRestaurants() {
     if (!location) {
@@ -36,6 +46,7 @@ export default function Home() {
 
     setIsLoading(true);
     setFetchError(null);
+    setSelectedCuisines([]);
     setSelectedRestaurants([]);
 
     try {
@@ -53,39 +64,95 @@ export default function Home() {
       }
 
       setRestaurants(data.restaurants);
+      setCuisines(data.cuisines);
       setStep(2);
     } catch (error) {
       setRestaurants([]);
+      setCuisines([]);
       setFetchError(
-        error instanceof Error ? error.message : "Unable to load nearby restaurants.",
+        error instanceof Error
+          ? error.message
+          : "Unable to load nearby restaurants.",
       );
     } finally {
       setIsLoading(false);
     }
   }
 
+  if (step === 0) {
+    const locating = locationStatus === "requesting";
+    const hasLocation = locationStatus === "granted" && location !== null;
+
+    return (
+      <main className="setup-screen">
+        <section className="setup-wizard" aria-labelledby="location-title">
+          <p className="setup-step">Before we start</p>
+          <h1 id="location-title">Where are you starting from?</h1>
+          <p className="setup-description">
+            Share your location to find restaurants near you.
+          </p>
+          <div className="setup-distance location-actions">
+            {hasLocation ? (
+              <button type="button" onClick={() => setStep(1)}>
+                Continue
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={requestLocation}
+                disabled={locating}
+                aria-busy={locating}
+                aria-describedby="location-note"
+              >
+                {locating ? "Finding your location…" : "Use my location"}
+              </button>
+            )}
+            {locationError && !hasLocation && (
+              <p className="location-error" role="alert">
+                {locationError}
+              </p>
+            )}
+            <p className="restaurant-note" id="location-note">
+              Your coordinates are sent to the restaurant API only when you
+              search.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="setup-screen">
       <section
-        className={`setup-wizard${isFinished ? " setup-wizard-finished" : ""}`}
+        className={
+          "setup-wizard" + (isFinished ? " setup-wizard-finished" : "")
+        }
         aria-labelledby="setup-title"
         aria-hidden={isFinished}
         inert={isFinished}
       >
         <p className="setup-step" aria-live="polite">
-          Step {Math.min(step, 2)} of 2
+          Step {Math.min(step, 3)} of 3
         </p>
         <h1 id="setup-title">
-          {step === 1 ? "How far would you go?" : "Where would you like to go?"}
+          {step === 1
+            ? "How far would you go?"
+            : step === 2
+              ? "What are you in the mood for?"
+              : "Where would you like to go?"}
         </h1>
         <p className="setup-description">
           {step === 1
             ? "Choose your maximum distance in miles."
-            : "Pick one or more restaurants."}
+            : step === 2
+              ? "Choose one or more cuisines you’d like."
+              : "Pick one or more restaurants."}
         </p>
 
         {step === 1 ? (
           <form
+            key="distance"
             className="setup-distance"
             onSubmit={async (event) => {
               event.preventDefault();
@@ -93,6 +160,7 @@ export default function Home() {
               await loadRestaurants();
             }}
           >
+            <p className="restaurant-note">Using your current location.</p>
             <label htmlFor="distance">Miles away</label>
             <select
               id="distance"
@@ -125,56 +193,97 @@ export default function Home() {
                 />
               </div>
             )}
-            {locationStatus === "requesting" && (
-              <p className="restaurant-note" role="status">
-                Waiting for location access…
-              </p>
-            )}
-            {(locationStatus === "denied" ||
-              locationStatus === "unavailable" ||
-              locationStatus === "error") && (
-              <p className="restaurant-empty" role="alert">
-                {locationError || "Location access is required to find restaurants."}
-              </p>
-            )}
             {fetchError && (
               <p className="restaurant-empty" role="alert">
                 {fetchError}
               </p>
             )}
-            <button
-              type="submit"
-              disabled={isLoading || locationStatus === "requesting"}
-            >
+            <button type="submit" disabled={isLoading}>
               {isLoading ? "Finding restaurants…" : "Continue"}
             </button>
-            {!location && locationStatus !== "requesting" && (
-              <button
-                type="button"
-                className="setup-back"
-                onClick={requestLocation}
-              >
-                Request location again
-              </button>
-            )}
+          </form>
+        ) : step === 2 ? (
+          <form
+            key="cuisine"
+            className="setup-distance setup-cuisines"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSelectedRestaurants([]);
+              setStep(3);
+            }}
+          >
+            <span className="restaurant-label" id="cuisines-label">
+              Cuisines
+            </span>
+            <div
+              className="cuisine-grid"
+              role="group"
+              aria-labelledby="cuisines-label"
+              aria-describedby="cuisine-hint"
+            >
+              {cuisines.map((type) => (
+                <label key={type} className="cuisine-option">
+                  <span className="cuisine-image" aria-hidden="true" />
+                  <span className="cuisine-option-footer">
+                    <span>{type}</span>
+                    <input
+                      type="checkbox"
+                      name="cuisines"
+                      value={type}
+                      checked={selectedCuisines.includes(type)}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        setSelectedCuisines((current) =>
+                          checked
+                            ? [...current, type]
+                            : current.filter((selected) => selected !== type),
+                        );
+                      }}
+                    />
+                  </span>
+                </label>
+              ))}
+              {cuisines.length === 0 && (
+                <p className="restaurant-empty" role="status">
+                  No cuisines were returned for this distance.
+                </p>
+              )}
+            </div>
+            <p className="restaurant-note" id="cuisine-hint">
+              Leave all unchecked for any cuisine.
+            </p>
+            <button type="submit">Continue</button>
+            <button
+              type="button"
+              className="setup-back"
+              onClick={() => setStep(1)}
+            >
+              Change distance
+            </button>
           </form>
         ) : (
           <form
+            key="restaurants"
             className="setup-distance setup-restaurants"
             onSubmit={(event) => {
               event.preventDefault();
-              if (selectedRestaurants.length > 0) setStep(3);
+              if (selectedRestaurants.length > 0) setStep(4);
             }}
           >
             <span className="restaurant-label" id="restaurant-label">
-              Restaurants within {maxDistance} miles
+              {selectedCuisines.length === 0
+                ? "All cuisines"
+                : selectedCuisines.length === 1
+                  ? selectedCuisines[0]
+                  : selectedCuisines.length + " cuisines"}{" "}
+              · Within {maxDistance} miles
             </span>
             <div
               className="restaurant-list"
               role="group"
               aria-labelledby="restaurant-label"
             >
-              {restaurants.map((restaurant) => (
+              {filteredRestaurants.map((restaurant) => (
                 <label className="restaurant-row" key={restaurant.id}>
                   <span className="restaurant-image" aria-hidden="true" />
                   <span className="restaurant-info">
@@ -204,10 +313,10 @@ export default function Home() {
                   />
                 </label>
               ))}
-              {restaurants.length === 0 && (
+              {filteredRestaurants.length === 0 && (
                 <p className="restaurant-empty" role="status">
-                  No restaurants within {maxDistance} miles. Try a larger
-                  distance.
+                  No restaurants match your choices within {maxDistance} miles.
+                  Try another cuisine or a larger distance.
                 </p>
               )}
             </div>
@@ -220,18 +329,15 @@ export default function Home() {
             <button
               type="button"
               className="setup-back"
-              onClick={() => {
-                setFetchError(null);
-                setStep(1);
-              }}
+              onClick={() => setStep(2)}
             >
-              Change distance
+              Change cuisine
             </button>
           </form>
         )}
 
         <div className="setup-progress" aria-hidden="true">
-          {[1, 2].map((number) => (
+          {[1, 2, 3].map((number) => (
             <span key={number} className={number <= step ? "filled" : ""} />
           ))}
         </div>

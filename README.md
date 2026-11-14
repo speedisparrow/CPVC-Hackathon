@@ -6,21 +6,35 @@ TomTom-backed API. The backend does **not** place AI calls.
 
 ## Setup
 
-1. Copy `.env.example` to `.env.local`.
-2. Add a TomTom API key as `TOMTOM_API_KEY`.
-3. Run `npm install` and `npm run dev`.
+1. Copy **.env.example** to **.env.local**.
+2. Add a TomTom API key as **TOMTOM_API_KEY**.
+3. Run **npm install** and **npm run dev**.
 
-Build with `npm run build`.
+Build with **npm run build**.
 
-`MAX_ROUTE_CANDIDATES` controls the maximum number of restaurant candidates whose
+**MAX_ROUTE_CANDIDATES** controls the maximum number of restaurant candidates whose
 routed distances are requested. It defaults to 40 to keep API use predictable.
+
+## Location access
+
+The site requests browser location access when it opens. Coordinates remain in
+React state and are sent to **POST /api/restaurants/discover** only after the user
+selects a maximum distance. Geolocation requires HTTPS or a trusted local origin
+such as **localhost**. Denied permission, unsupported browsers, unavailable
+positions, and timeouts display an error with an option to try again.
 
 ## Frontend restaurant discovery
 
-The first wizard step requests a maximum distance. It sends that distance and the
-browser-provided coordinates to `POST /api/restaurants/discover`. The restaurant
-selection step renders the live API results, including routed distance, cuisines,
-and provider-supplied phone numbers. No bundled mock restaurant dataset is used.
+The wizard has three selection steps: distance, cuisine, and restaurant. The
+distance and browser coordinates are sent to the discovery API. Available cuisines
+are derived from the live response rather than a bundled JSON file. Users can select
+multiple cuisines or leave all unchecked to see every returned restaurant. The
+restaurant step displays provider-supplied names, routed distance, cuisines, and
+phone availability.
+
+Use **Change cuisine** to return to the cuisine step, then **Change distance** if
+needed. Changing the distance performs a new discovery request and clears previous
+cuisine and restaurant selections. No bundled mock restaurant dataset is used.
 
 ## Backend API
 
@@ -28,29 +42,29 @@ All routes accept and return JSON.
 
 ### Discover nearby restaurants and cuisines
 
-`POST /api/restaurants/discover`
+**POST /api/restaurants/discover**
 
-```json
+~~~json
 {
   "location": { "latitude": 34.0522, "longitude": -118.2437 },
   "maxTravelDistanceMiles": 10
 }
-```
+~~~
 
 Returns restaurants within the requested routed travel distance and a sorted,
-deduplicated `cuisines` array derived from those restaurants.
+deduplicated **cuisines** array derived from those restaurants.
 
 ### Filter by cuisine
 
-`POST /api/restaurants/filter`
+**POST /api/restaurants/filter**
 
-```json
+~~~json
 {
   "location": { "latitude": 34.0522, "longitude": -118.2437 },
   "maxTravelDistanceMiles": 10,
   "cuisine": "Korean"
 }
-```
+~~~
 
 The response contains matching restaurants. Restaurants include phone numbers when
 the provider has one so the UI can disable selection for places that cannot be
@@ -58,9 +72,9 @@ called.
 
 ### Sort wait times from the future calling service
 
-`POST /api/restaurants/wait-times/sort`
+**POST /api/restaurants/wait-times/sort**
 
-```json
+~~~json
 {
   "restaurants": [
     {
@@ -82,9 +96,9 @@ called.
     }
   ]
 }
-```
+~~~
 
 Every restaurant is returned. Restaurants with answered wait times are sorted from
 shortest to longest wait. Restaurants whose calls failed, were unavailable, or do
-not yet have a result remain in the response at the end with a `null` wait time.
+not yet have a result remain in the response at the end with a **null** wait time.
 There is no maximum-wait field and the backend does not store one.
