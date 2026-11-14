@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useUserLocation } from "@/components/location-provider";
 import type { Restaurant } from "@/lib/restaurants/types";
 
@@ -20,6 +20,7 @@ export default function Home() {
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const confirmationRef = useRef<HTMLDialogElement>(null);
   const {
     location,
     status: locationStatus,
@@ -32,9 +33,10 @@ export default function Home() {
   const filteredRestaurants = restaurants.filter(
     (restaurant) =>
       selectedCuisines.length === 0 ||
-      restaurant.cuisines.some((cuisine) =>
-        selectedCuisines.includes(cuisine),
-      ),
+      restaurant.cuisines.some((cuisine) => selectedCuisines.includes(cuisine)),
+  );
+  const restaurantsToConfirm = filteredRestaurants.filter((restaurant) =>
+    selectedRestaurants.includes(restaurant.id),
   );
 
   async function loadRestaurants() {
@@ -267,7 +269,8 @@ export default function Home() {
             className="setup-distance setup-restaurants"
             onSubmit={(event) => {
               event.preventDefault();
-              if (selectedRestaurants.length > 0) setStep(4);
+              if (restaurantsToConfirm.length > 0)
+                confirmationRef.current?.showModal();
             }}
           >
             <span className="restaurant-label" id="restaurant-label">
@@ -295,6 +298,14 @@ export default function Home() {
                     <span className="restaurant-phone">
                       {restaurant.phone || "Phone unavailable"}
                     </span>
+                    {restaurant.openingHoursSourceUrl && (
+                      <span>Hours from restaurant website</span>
+                    )}
+                    {restaurant.isOpenNow === false ? (
+                      <span className="restaurant-closed">May be closed</span>
+                    ) : restaurant.isOpenNow == null ? (
+                      <span>Hours unavailable</span>
+                    ) : null}
                   </span>
                   <input
                     type="checkbox"
@@ -342,6 +353,91 @@ export default function Home() {
           ))}
         </div>
       </section>
+      <dialog
+        ref={confirmationRef}
+        className="confirmation-dialog"
+        aria-labelledby="confirmation-title"
+        aria-describedby="confirmation-description"
+      >
+        <div className="confirmation-content">
+          <button
+            type="button"
+            className="confirmation-close"
+            aria-label="Close confirmation"
+            onClick={() => confirmationRef.current?.close()}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              aria-hidden="true"
+            >
+              <path d="m6 6 12 12M6 18 18 6" />
+            </svg>
+          </button>
+          <p className="setup-step">One last check</p>
+          <h2 id="confirmation-title">Confirm your choices.</h2>
+          <p className="confirmation-description" id="confirmation-description">
+            Review the sample details for each selected restaurant.
+          </p>
+          <div className="confirmation-restaurants">
+            {restaurantsToConfirm.map((restaurant) => (
+              <article key={restaurant.id} className="confirmation-card">
+                <div className="confirmation-restaurant-heading">
+                  <span className="restaurant-image" aria-hidden="true" />
+                  <div>
+                    <h3>{restaurant.name}</h3>
+                    <p>{restaurant.phone || "Phone unavailable"}</p>
+                    {restaurant.isOpenNow === false && (
+                      <p className="restaurant-closed">May be closed</p>
+                    )}
+                  </div>
+                </div>
+                <p className="confirmation-detail-label">Placeholder details</p>
+                <dl className="confirmation-details">
+                  <div>
+                    <dt>Party size</dt>
+                    <dd>4 people</dd>
+                  </div>
+                  <div>
+                    <dt>Arrival</dt>
+                    <dd>As soon as possible</dd>
+                  </div>
+                  <div>
+                    <dt>Max wait</dt>
+                    <dd>15 minutes</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+          <p className="restaurant-note">
+            Sample details only. No calls or reservations are made.
+          </p>
+          <div className="confirmation-actions">
+            <button
+              type="button"
+              onClick={() => confirmationRef.current?.close()}
+            >
+              Edit selections
+            </button>
+            <button
+              type="button"
+              className="confirmation-submit"
+              disabled={restaurantsToConfirm.length === 0}
+              onClick={() => {
+                confirmationRef.current?.close();
+                setStep(4);
+              }}
+            >
+              Make call(s)
+            </button>
+          </div>
+        </div>
+      </dialog>
     </main>
   );
 }

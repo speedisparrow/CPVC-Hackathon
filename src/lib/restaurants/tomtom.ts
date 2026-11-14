@@ -1,4 +1,6 @@
-import type { Coordinates, Restaurant } from "./types";
+import type { Coordinates, OpeningHours, Restaurant } from "./types";
+import { isOpenAt, isOpeningHours } from "./opening-hours";
+import { resolveOpeningHours } from "./opening-hours-overrides";
 
 const SEARCH_URL = "https://api.tomtom.com/search/2/nearbySearch/.json";
 const ROUTING_URL = "https://api.tomtom.com/routing/1/calculateRoute";
@@ -20,6 +22,8 @@ type TomTomSearchResult = {
     name?: string;
     phone?: string;
     url?: string;
+    openingHours?: OpeningHours;
+    timeZone?: { ianaId?: string };
     categories?: string[];
     classifications?: Array<{
       names?: Array<{ name?: string }>;
@@ -35,7 +39,10 @@ type TomTomRouteResponse = {
 };
 
 export class RestaurantProviderError extends Error {
-  constructor(message: string, public readonly status = 502) {
+  constructor(
+    message: string,
+    public readonly status = 502,
+  ) {
     super(message);
   }
 }
@@ -72,7 +79,9 @@ function titleCase(value: string): string {
 function cuisinesFor(result: TomTomSearchResult): string[] {
   const labels = [
     ...(result.poi?.classifications ?? []).flatMap((classification) =>
-      (classification.names ?? []).flatMap((item) => (item.name ? [item.name] : [])),
+      (classification.names ?? []).flatMap((item) =>
+        item.name ? [item.name] : [],
+      ),
     ),
     ...(result.poi?.categories ?? []),
   ];
@@ -131,7 +140,9 @@ async function mapWithConcurrency<T, R>(
   }
 
   await Promise.all(
-    Array.from({ length: Math.min(concurrency, values.length) }, () => worker()),
+    Array.from({ length: Math.min(concurrency, values.length) }, () =>
+      worker(),
+    ),
   );
   return output;
 }
@@ -147,6 +158,8 @@ export async function findNearbyRestaurants(
   url.searchParams.set("radius", String(searchRadius(maxTravelDistanceMiles)));
   url.searchParams.set("categorySet", RESTAURANT_CATEGORY_ID);
   url.searchParams.set("limit", "100");
+  url.searchParams.set("openingHours", "nextSevenDays");
+  url.searchParams.set("timeZone", "iana");
 
   const data = await getJson<TomTomSearchResponse>(url);
   const maximumCandidates = Math.min(
@@ -157,28 +170,48 @@ export async function findNearbyRestaurants(
     .filter((result) => result.poi?.name && result.position)
     .slice(0, maximumCandidates);
 
-  const restaurants = await mapWithConcurrency(candidates, 5, async (result) => {
-    const location = {
-      latitude: result.position.lat,
-      longitude: result.position.lon,
-    };
-    const summary = await routeSummary(origin, location);
-    if (!summary) return null;
+  const restaurants = await mapWithConcurrency(
+    candidates,
+    5,
+    async (result) => {
+      const location = {
+        latitude: result.position.lat,
+        longitude: result.position.lon,
+      };
+      const summary = await routeSummary(origin, location);
+      if (!summary) return null;
 
-    const distanceMiles = summary.lengthInMeters / METERS_PER_MILE;
-    if (distanceMiles > maxTravelDistanceMiles) return null;
+      const distanceMiles = summary.lengthInMeters / METERS_PER_MILE;
+      if (distanceMiles > maxTravelDistanceMiles) return null;
 
-    return {
-      id: result.id,
-      name: result.poi?.name ?? "Unknown restaurant",
-      address: result.address?.freeformAddress ?? "",
-      location,
-      cuisines: cuisinesFor(result),
-      phone: result.poi?.phone ?? null,
-      website: result.poi?.url ?? null,
-      distanceMiles: Math.round(distanceMiles * 100) / 100,
-    } satisfies Restaurant;
-  });
+      const providerHours = isOpeningHours(result.poi?.openingHours)
+        ? result.poi.openingHours
+        : null;
+      const now = new Date();
+      const { openingHours, timeZone, openingHoursSourceUrl } =
+        resolveOpeningHours(
+          result.id,
+          providerHours,
+          result.poi?.timeZone?.ianaId ?? null,
+          now,
+        );
+
+      return {
+        id: result.id,
+        name: result.poi?.name ?? "Unknown restaurant",
+        address: result.address?.freeformAddress ?? "",
+        location,
+        cuisines: cuisinesFor(result),
+        phone: result.poi?.phone ?? null,
+        website: result.poi?.url ?? null,
+        distanceMiles: Math.round(distanceMiles * 100) / 100,
+        openingHours,
+        openingHoursSourceUrl,
+        timeZone,
+        isOpenNow: isOpenAt(openingHours, timeZone, now),
+      } satisfies Restaurant;
+    },
+  );
 
   return restaurants
     .filter((restaurant): restaurant is Restaurant => restaurant !== null)
@@ -187,4 +220,3 @@ export async function findNearbyRestaurants(
         a.distanceMiles - b.distanceMiles || a.name.localeCompare(b.name),
     );
 }
-

@@ -1,4 +1,9 @@
-import type { Restaurant, RestaurantSearchInput, WaitTimeResult } from "./types";
+import type {
+  Restaurant,
+  RestaurantSearchInput,
+  WaitTimeResult,
+} from "./types";
+import { isOpeningHours } from "./opening-hours";
 
 export class ValidationError extends Error {}
 
@@ -19,7 +24,10 @@ export function parseSearchInput(value: unknown): RestaurantSearchInput {
   }
 
   const latitude = finiteNumber(value.location.latitude, "location.latitude");
-  const longitude = finiteNumber(value.location.longitude, "location.longitude");
+  const longitude = finiteNumber(
+    value.location.longitude,
+    "location.longitude",
+  );
   const maxTravelDistanceMiles = finiteNumber(
     value.maxTravelDistanceMiles,
     "maxTravelDistanceMiles",
@@ -29,14 +37,21 @@ export function parseSearchInput(value: unknown): RestaurantSearchInput {
     throw new ValidationError("location.latitude must be between -90 and 90");
   }
   if (longitude < -180 || longitude > 180) {
-    throw new ValidationError("location.longitude must be between -180 and 180");
+    throw new ValidationError(
+      "location.longitude must be between -180 and 180",
+    );
   }
   if (maxTravelDistanceMiles <= 0 || maxTravelDistanceMiles > 30) {
-    throw new ValidationError("maxTravelDistanceMiles must be between 0 and 30");
+    throw new ValidationError(
+      "maxTravelDistanceMiles must be between 0 and 30",
+    );
   }
 
   const cuisine = value.cuisine;
-  if (cuisine !== undefined && (typeof cuisine !== "string" || !cuisine.trim())) {
+  if (
+    cuisine !== undefined &&
+    (typeof cuisine !== "string" || !cuisine.trim())
+  ) {
     throw new ValidationError("cuisine must be a non-empty string");
   }
 
@@ -51,7 +66,11 @@ export function parseWaitTimeInput(value: unknown): {
   restaurants: Restaurant[];
   results: WaitTimeResult[];
 } {
-  if (!isRecord(value) || !Array.isArray(value.restaurants) || !Array.isArray(value.results)) {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.restaurants) ||
+    !Array.isArray(value.results)
+  ) {
     throw new ValidationError("restaurants and results must be arrays");
   }
 
@@ -70,11 +89,22 @@ export function parseWaitTimeInput(value: unknown): {
       (item.website !== null && typeof item.website !== "string") ||
       typeof item.distanceMiles !== "number" ||
       !Number.isFinite(item.distanceMiles) ||
-      item.distanceMiles < 0
+      item.distanceMiles < 0 ||
+      (item.openingHours != null && !isOpeningHours(item.openingHours)) ||
+      (item.openingHoursSourceUrl != null &&
+        typeof item.openingHoursSourceUrl !== "string") ||
+      (item.timeZone != null && typeof item.timeZone !== "string") ||
+      (item.isOpenNow != null && typeof item.isOpenNow !== "boolean")
     ) {
       throw new ValidationError(`restaurants[${index}] is invalid`);
     }
-    return item as Restaurant;
+    return {
+      ...item,
+      openingHours: item.openingHours ?? null,
+      openingHoursSourceUrl: item.openingHoursSourceUrl ?? null,
+      timeZone: item.timeZone ?? null,
+      isOpenNow: item.isOpenNow ?? null,
+    } as Restaurant;
   });
 
   const validStatuses = new Set(["answered", "unavailable", "failed"]);
@@ -95,4 +125,3 @@ export function parseWaitTimeInput(value: unknown): {
 
   return { restaurants, results };
 }
-

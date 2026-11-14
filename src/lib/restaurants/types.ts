@@ -3,6 +3,14 @@ export type Coordinates = {
   longitude: number;
 };
 
+export type OpeningHours = {
+  mode: "nextSevenDays";
+  timeRanges: {
+    startTime: { date: string; hour: number; minute: number };
+    endTime: { date: string; hour: number; minute: number };
+  }[];
+};
+
 export type Restaurant = {
   id: string;
   name: string;
@@ -12,6 +20,10 @@ export type Restaurant = {
   phone: string | null;
   website: string | null;
   distanceMiles: number;
+  openingHours: OpeningHours | null;
+  openingHoursSourceUrl: string | null;
+  timeZone: string | null;
+  isOpenNow: boolean | null;
 };
 
 export type RestaurantSearchInput = {
@@ -25,4 +37,3 @@ export type WaitTimeResult = {
   waitMinutes: number | null;
   status: "answered" | "unavailable" | "failed";
 };
-

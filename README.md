@@ -54,9 +54,33 @@ multiple cuisines or leave all unchecked to see every returned restaurant. The
 restaurant step displays provider-supplied names, routed distance, cuisines, and
 phone availability.
 
+Discovery requests include TomTom's next-seven-days opening hours and IANA time
+zone. Each restaurant includes `openingHours`, `timeZone`, and `isOpenNow`, using
+`null` when the data is unavailable. Status is checked when search results are
+loaded, in the restaurant's local time, with closing times treated as exclusive.
+
+When a specific TomTom listing conflicts with its restaurant's official hours,
+`src/data/opening-hours-overrides.json` can provide a sourced daily schedule for
+that exact restaurant ID. The Poly Canyon Village Subway override uses its
+official 8 AM–midnight daily hours, checked November 13, 2026. Midnight is stored
+as 00:00 on the following calendar date. Other locations retain TomTom's hours.
+Overrides require manual review when hours change; their source and verification
+date are recorded in the JSON. API results include `openingHoursSourceUrl` when
+an override applies, and the UI identifies those hours as coming from the restaurant.
+
+The list and confirmation dialog show **May be closed** for closed restaurants;
+missing hours display **Hours unavailable** in the list. These are published hours,
+not a live availability check. Searching again refreshes the status.
+
 Use **Change cuisine** to return to the cuisine step, then **Change distance** if
 needed. Changing the distance performs a new discovery request and clears previous
 cuisine and restaurant selections. No bundled mock restaurant dataset is used.
+
+Continuing from the restaurant step opens a confirmation dialog with only the
+selected restaurants. Each entry shows sample party size, arrival, and maximum
+wait details. Users can edit their selections or confirm to finish the wizard.
+These confirmation details are placeholders; confirming does not place calls or
+make reservations.
 
 ## Backend API
 
