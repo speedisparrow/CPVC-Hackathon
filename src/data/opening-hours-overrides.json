@@ -1,0 +1,10 @@
+{
+  "sfaZ__Wo74lSi1sY-rCMRA": {
+    "name": "Subway — Poly Canyon Village",
+    "timeZone": "America/Los_Angeles",
+    "opensAt": { "hour": 8, "minute": 0 },
+    "closesAt": { "hour": 0, "minute": 0 },
+    "sourceUrl": "https://restaurants.subway.com/united-states/ca/san-luis-obispo/universitypoly-canyon-village",
+    "verifiedOn": "2026-11-13"
+  }
+}
