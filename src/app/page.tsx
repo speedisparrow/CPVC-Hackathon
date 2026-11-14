@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUserLocation } from "@/components/location-provider";
+// import { RestaurantImage } from "@/components/restaurant-image";
 import type { Restaurant } from "@/lib/restaurants/types";
 
 type DiscoverResponse = {
@@ -21,6 +22,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const confirmationRef = useRef<HTMLDialogElement>(null);
+  const waitingTitleRef = useRef<HTMLHeadingElement>(null);
   const {
     location,
     status: locationStatus,
@@ -28,7 +30,6 @@ export default function Home() {
     requestLocation,
   } = useUserLocation();
 
-  const isFinished = step > 3;
   const maxDistance = Number(distance === "custom" ? customMiles : distance);
   const filteredRestaurants = restaurants.filter(
     (restaurant) =>
@@ -38,6 +39,10 @@ export default function Home() {
   const restaurantsToConfirm = filteredRestaurants.filter((restaurant) =>
     selectedRestaurants.includes(restaurant.id),
   );
+
+  useEffect(() => {
+    if (step === 4) waitingTitleRef.current?.focus();
+  }, [step]);
 
   async function loadRestaurants() {
     if (!location) {
@@ -124,16 +129,68 @@ export default function Home() {
     );
   }
 
+  if (step === 4) {
+    return (
+      <main className="setup-screen">
+        <section className="setup-wizard" aria-labelledby="waiting-title">
+          <div className="call-waiting-icon" aria-hidden="true">
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m5 3 4 1 1 5-3 2a14 14 0 0 0 6 6l2-3 5 1 1 4c0 2-2 3-4 2C9 19 5 15 3 7 2 5 3 3 5 3Z" />
+            </svg>
+          </div>
+          <p className="setup-step" role="status">
+            Your selections are confirmed
+          </p>
+          <h1 id="waiting-title" ref={waitingTitleRef} tabIndex={-1}>
+            Hang tight.
+          </h1>
+          <p className="setup-description">
+            Please wait a moment while the calls go through.
+          </p>
+          <div className="setup-distance setup-restaurants">
+            <div className="restaurant-list" aria-label="Confirmed restaurants">
+              {restaurantsToConfirm.map((restaurant) => (
+                <div className="call-waiting-row" key={restaurant.id}>
+                  {/* <RestaurantImage
+                    name={restaurant.name}
+                    photoUrl={restaurant.photoUrl}
+                  /> */}
+                  <div className="restaurant-info">
+                    <strong>{restaurant.name}</strong>
+                    <span>{restaurant.phone || "Phone unavailable"}</span>
+                    <span>Waiting to call</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="restaurant-note">
+              Preview only. Calling isn’t connected yet.
+            </p>
+            <button
+              type="button"
+              className="setup-back"
+              onClick={() => setStep(3)}
+            >
+              Back to selections
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="setup-screen">
-      <section
-        className={
-          "setup-wizard" + (isFinished ? " setup-wizard-finished" : "")
-        }
-        aria-labelledby="setup-title"
-        aria-hidden={isFinished}
-        inert={isFinished}
-      >
+      <section className="setup-wizard" aria-labelledby="setup-title">
         <p className="setup-step" aria-live="polite">
           Step {Math.min(step, 3)} of 3
         </p>
@@ -225,7 +282,7 @@ export default function Home() {
             >
               {cuisines.map((type) => (
                 <label key={type} className="cuisine-option">
-                  <span className="cuisine-image" aria-hidden="true" />
+                  {/* <span className="cuisine-image" aria-hidden="true" /> */}
                   <span className="cuisine-option-footer">
                     <span>{type}</span>
                     <input
@@ -288,7 +345,10 @@ export default function Home() {
             >
               {filteredRestaurants.map((restaurant) => (
                 <label className="restaurant-row" key={restaurant.id}>
-                  <span className="restaurant-image" aria-hidden="true" />
+                  {/* <RestaurantImage
+                    name={restaurant.name}
+                    photoUrl={restaurant.photoUrl}
+                  /> */}
                   <span className="restaurant-info">
                     <strong>{restaurant.name}</strong>
                     <span>
@@ -331,10 +391,7 @@ export default function Home() {
                 </p>
               )}
             </div>
-            <button
-              type="submit"
-              disabled={selectedRestaurants.length === 0 || isFinished}
-            >
+            <button type="submit" disabled={selectedRestaurants.length === 0}>
               Continue
             </button>
             <button
@@ -387,7 +444,10 @@ export default function Home() {
             {restaurantsToConfirm.map((restaurant) => (
               <article key={restaurant.id} className="confirmation-card">
                 <div className="confirmation-restaurant-heading">
-                  <span className="restaurant-image" aria-hidden="true" />
+                  {/* <RestaurantImage
+                    name={restaurant.name}
+                    photoUrl={restaurant.photoUrl}
+                  /> */}
                   <div>
                     <h3>{restaurant.name}</h3>
                     <p>{restaurant.phone || "Phone unavailable"}</p>

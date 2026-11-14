@@ -87,6 +87,9 @@ export function parseWaitTimeInput(value: unknown): {
       !item.cuisines.every((cuisine) => typeof cuisine === "string") ||
       (item.phone !== null && typeof item.phone !== "string") ||
       (item.website !== null && typeof item.website !== "string") ||
+      (item.photoUrl != null &&
+        (typeof item.photoUrl !== "string" ||
+          !item.photoUrl.startsWith("/api/restaurants/photo?detailsId="))) ||
       typeof item.distanceMiles !== "number" ||
       !Number.isFinite(item.distanceMiles) ||
       item.distanceMiles < 0 ||
@@ -100,6 +103,7 @@ export function parseWaitTimeInput(value: unknown): {
     }
     return {
       ...item,
+      photoUrl: item.photoUrl ?? null,
       openingHours: item.openingHours ?? null,
       openingHoursSourceUrl: item.openingHoursSourceUrl ?? null,
       timeZone: item.timeZone ?? null,

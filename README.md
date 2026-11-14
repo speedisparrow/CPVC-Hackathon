@@ -54,6 +54,28 @@ multiple cuisines or leave all unchecked to see every returned restaurant. The
 restaurant step displays provider-supplied names, routed distance, cuisines, and
 phone availability.
 
+Photo loading and image placeholders are currently disabled. The wizard uses
+text-only cuisine and restaurant rows. Image component calls, URL generation,
+and the photo endpoint implementation are commented out for later; the endpoint
+currently returns 404 without contacting a provider.
+
+The preserved photo implementation works as follows when re-enabled:
+restaurant cards, the confirmation dialog, and the waiting screen load a location's
+first available TomTom POI photo. Discovery includes a nullable `photoUrl`, derived
+from the search result's `dataSources.poiDetails` reference. Photos load lazily
+through **GET /api/restaurants/photo?detailsId=...**, which retrieves POI Details
+and proxies the image without exposing `TOMTOM_API_KEY` to the browser. Missing
+references, missing photos, provider errors, and denied access keep the gray
+placeholder. Photo requests do not delay restaurant discovery.
+
+The existing TomTom key must have both POI Details and POI Photos access. The
+[POI Photos service](https://docs.tomtom.com/poi-photos-api/documentation/poi-photos-api/poi-photos)
+requires separate access through TomTom Sales and is not part of free evaluation
+or PAYG. Without it, photos may remain unavailable even when search works. Photo
+responses use a short private browser cache; provider requests are not stored in
+the Next.js cache. The app and photo responses are marked non-indexable as required
+by TomTom's rich-content usage rules.
+
 Discovery requests include TomTom's next-seven-days opening hours and IANA time
 zone. Each restaurant includes `openingHours`, `timeZone`, and `isOpenNow`, using
 `null` when the data is unavailable. Status is checked when search results are
@@ -78,24 +100,26 @@ cuisine and restaurant selections. No bundled mock restaurant dataset is used.
 
 Continuing from the restaurant step opens a confirmation dialog with only the
 selected restaurants. Each entry shows sample party size, arrival, and maximum
-wait details. Users can edit their selections or confirm to finish the wizard.
-These confirmation details are placeholders; confirming does not place calls or
-make reservations.
+wait details. Users can edit their selections or confirm to open a waiting screen
+listing their confirmed restaurants. The screen stays visible and lets users go
+back to their selections. This is a call-flow preview; confirming does not place
+calls or make reservations. The calling service is not connected yet.
 
 ## Backend API
 
-All routes accept and return JSON.
+The POST routes accept and return JSON. The photo GET route returns an image, or
+404 when a photo cannot be retrieved.
 
 ### Discover nearby restaurants and cuisines
 
 **POST /api/restaurants/discover**
 
-~~~json
+```json
 {
   "location": { "latitude": 34.0522, "longitude": -118.2437 },
   "maxTravelDistanceMiles": 10
 }
-~~~
+```
 
 Returns restaurants within the requested routed travel distance and a sorted,
 deduplicated **cuisines** array derived from those restaurants.
@@ -104,13 +128,13 @@ deduplicated **cuisines** array derived from those restaurants.
 
 **POST /api/restaurants/filter**
 
-~~~json
+```json
 {
   "location": { "latitude": 34.0522, "longitude": -118.2437 },
   "maxTravelDistanceMiles": 10,
   "cuisine": "Korean"
 }
-~~~
+```
 
 The response contains matching restaurants. Restaurants include phone numbers when
 the provider has one so the UI can disable selection for places that cannot be
@@ -120,7 +144,7 @@ called.
 
 **POST /api/restaurants/wait-times/sort**
 
-~~~json
+```json
 {
   "restaurants": [
     {
@@ -142,7 +166,7 @@ called.
     }
   ]
 }
-~~~
+```
 
 Every restaurant is returned. Restaurants with answered wait times are sorted from
 shortest to longest wait. Restaurants whose calls failed, were unavailable, or do

@@ -1,6 +1,8 @@
 import type { Coordinates, OpeningHours, Restaurant } from "./types";
 import { isOpenAt, isOpeningHours } from "./opening-hours";
 import { resolveOpeningHours } from "./opening-hours-overrides";
+import type { PoiPhotoReferences } from "./photos";
+// import { restaurantPhotoUrl } from "./photos";
 
 const SEARCH_URL = "https://api.tomtom.com/search/2/nearbySearch/.json";
 const ROUTING_URL = "https://api.tomtom.com/routing/1/calculateRoute";
@@ -18,6 +20,7 @@ type TomTomSearchResult = {
   id: string;
   position: { lat: number; lon: number };
   address?: { freeformAddress?: string };
+  dataSources?: { poiDetails?: PoiPhotoReferences };
   poi?: {
     name?: string;
     phone?: string;
@@ -173,7 +176,7 @@ export async function findNearbyRestaurants(
   const restaurants = await mapWithConcurrency(
     candidates,
     5,
-    async (result) => {
+    async (result): Promise<Restaurant | null> => {
       const location = {
         latitude: result.position.lat,
         longitude: result.position.lon,
@@ -204,6 +207,8 @@ export async function findNearbyRestaurants(
         cuisines: cuisinesFor(result),
         phone: result.poi?.phone ?? null,
         website: result.poi?.url ?? null,
+        // photoUrl: restaurantPhotoUrl(result.dataSources?.poiDetails),
+        photoUrl: null,
         distanceMiles: Math.round(distanceMiles * 100) / 100,
         openingHours,
         openingHoursSourceUrl,

@@ -19,6 +19,7 @@ export type Restaurant = {
   cuisines: string[];
   phone: string | null;
   website: string | null;
+  photoUrl: string | null;
   distanceMiles: number;
   openingHours: OpeningHours | null;
   openingHoursSourceUrl: string | null;

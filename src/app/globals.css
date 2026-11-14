@@ -30,13 +30,32 @@ body {
   width: 100%;
   max-width: 660px;
   text-align: center;
-  opacity: 1;
-  transition: opacity 800ms ease;
 }
 
-.setup-wizard-finished {
-  opacity: 0;
-  pointer-events: none;
+.call-waiting-icon {
+  display: grid;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 26px;
+  place-items: center;
+  border: 1px solid #e5e5e5;
+  border-radius: 50%;
+  background: #f7f7f7;
+}
+
+#waiting-title:focus {
+  outline: none;
+}
+
+.call-waiting-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 16px;
+}
+
+.call-waiting-row + .call-waiting-row {
+  border-top: 1px solid #eee;
 }
 
 .setup-step {
@@ -223,8 +242,8 @@ body {
   overscroll-behavior: contain;
 }
 .setup-distance .restaurant-row {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 20px;
+  display: flex;
+  width: 100%;
   align-items: center;
   gap: 14px;
   padding: 18px 16px;
@@ -237,6 +256,10 @@ body {
 .restaurant-row:hover {
   background: #fafafa;
 }
+.restaurant-row > .restaurant-info {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
 .restaurant-info {
   display: flex;
   flex-direction: column;
@@ -247,12 +270,20 @@ body {
 }
 
 .restaurant-image {
+  overflow: hidden;
   width: 56px;
   height: 56px;
   flex-shrink: 0;
   border: 1px solid #eaeaea;
   border-radius: 8px;
   background: #f3f3f3;
+}
+
+.restaurant-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .restaurant-note {
@@ -511,18 +542,11 @@ body {
 
 @media (max-width: 380px) {
   .setup-distance .restaurant-row {
-    grid-template-columns: 44px minmax(0, 1fr) 20px;
     gap: 10px;
     padding: 16px 12px;
   }
   .restaurant-image {
     width: 44px;
     height: 44px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .setup-wizard {
-    transition: none;
   }
 }
