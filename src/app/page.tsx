@@ -1,20 +1,68 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
-import restaurantData from "@/data/restaurants.json";
+import { useUserLocation } from "@/components/location-provider";
+import type { Restaurant } from "@/lib/restaurants/types";
 
-const { restaurants } = restaurantData;
+type DiscoverResponse = {
+  restaurants: Restaurant[];
+  cuisines: string[];
+  error?: string;
+};
 
 export default function Home() {
   const [step, setStep] = useState(1);
   const [distance, setDistance] = useState("5");
   const [customMiles, setCustomMiles] = useState("");
   const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const {
+    location,
+    status: locationStatus,
+    error: locationError,
+    requestLocation,
+  } = useUserLocation();
   const isFinished = step > 2;
   const maxDistance = Number(distance === "custom" ? customMiles : distance);
-  const filteredRestaurants = restaurants.filter(
-    (restaurant) => restaurant.distance <= maxDistance,
-  );
+
+  async function loadRestaurants() {
+    if (!location) {
+      setFetchError("Allow location access before searching for restaurants.");
+      requestLocation();
+      return;
+    }
+
+    setIsLoading(true);
+    setFetchError(null);
+    setSelectedRestaurants([]);
+
+    try {
+      const response = await fetch("/api/restaurants/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location,
+          maxTravelDistanceMiles: maxDistance,
+        }),
+      });
+      const data = (await response.json()) as DiscoverResponse;
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to load nearby restaurants.");
+      }
+
+      setRestaurants(data.restaurants);
+      setStep(2);
+    } catch (error) {
+      setRestaurants([]);
+      setFetchError(
+        error instanceof Error ? error.message : "Unable to load nearby restaurants.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <main className="setup-screen">
@@ -39,11 +87,10 @@ export default function Home() {
         {step === 1 ? (
           <form
             className="setup-distance"
-            onSubmit={(event) => {
+            onSubmit={async (event) => {
               event.preventDefault();
               if (!Number.isFinite(maxDistance) || maxDistance <= 0) return;
-              setSelectedRestaurants([]);
-              setStep(2);
+              await loadRestaurants();
             }}
           >
             <label htmlFor="distance">Miles away</label>
@@ -69,6 +116,7 @@ export default function Home() {
                   type="number"
                   inputMode="decimal"
                   min="0.1"
+                  max="30"
                   step="any"
                   placeholder="Enter miles"
                   value={customMiles}
@@ -77,7 +125,38 @@ export default function Home() {
                 />
               </div>
             )}
-            <button type="submit">Continue</button>
+            {locationStatus === "requesting" && (
+              <p className="restaurant-note" role="status">
+                Waiting for location access…
+              </p>
+            )}
+            {(locationStatus === "denied" ||
+              locationStatus === "unavailable" ||
+              locationStatus === "error") && (
+              <p className="restaurant-empty" role="alert">
+                {locationError || "Location access is required to find restaurants."}
+              </p>
+            )}
+            {fetchError && (
+              <p className="restaurant-empty" role="alert">
+                {fetchError}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={isLoading || locationStatus === "requesting"}
+            >
+              {isLoading ? "Finding restaurants…" : "Continue"}
+            </button>
+            {!location && locationStatus !== "requesting" && (
+              <button
+                type="button"
+                className="setup-back"
+                onClick={requestLocation}
+              >
+                Request location again
+              </button>
+            )}
           </form>
         ) : (
           <form
@@ -95,18 +174,18 @@ export default function Home() {
               role="group"
               aria-labelledby="restaurant-label"
             >
-              {filteredRestaurants.map((restaurant) => (
+              {restaurants.map((restaurant) => (
                 <label className="restaurant-row" key={restaurant.id}>
                   <span className="restaurant-image" aria-hidden="true" />
                   <span className="restaurant-info">
                     <strong>{restaurant.name}</strong>
                     <span>
-                      <span className="restaurant-rating">
-                        ★ {restaurant.rating}
-                      </span>{" "}
-                      · {restaurant.cuisine}
+                      {restaurant.distanceMiles.toFixed(2)} miles ·{" "}
+                      {restaurant.cuisines.join(", ") || "Restaurant"}
                     </span>
-                    <span className="restaurant-phone">{restaurant.phone}</span>
+                    <span className="restaurant-phone">
+                      {restaurant.phone || "Phone unavailable"}
+                    </span>
                   </span>
                   <input
                     type="checkbox"
@@ -125,16 +204,13 @@ export default function Home() {
                   />
                 </label>
               ))}
-              {filteredRestaurants.length === 0 && (
+              {restaurants.length === 0 && (
                 <p className="restaurant-empty" role="status">
                   No restaurants within {maxDistance} miles. Try a larger
                   distance.
                 </p>
               )}
             </div>
-            <p className="restaurant-note">
-              Ratings and phone numbers are placeholders.
-            </p>
             <button
               type="submit"
               disabled={selectedRestaurants.length === 0 || isFinished}
@@ -144,7 +220,10 @@ export default function Home() {
             <button
               type="button"
               className="setup-back"
-              onClick={() => setStep(1)}
+              onClick={() => {
+                setFetchError(null);
+                setStep(1);
+              }}
             >
               Change distance
             </button>

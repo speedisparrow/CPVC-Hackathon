@@ -1,8 +1,8 @@
 # CPVC Hackathon — Zero-Wait
 
-Next.js with TypeScript, App Router, Tailwind CSS, and ESLint. The project contains
-the `dev` branch's frontend setup wizard and a TomTom-backed restaurant API. The
-backend does **not** place AI calls.
+Next.js with TypeScript, App Router, Tailwind CSS, and ESLint. The frontend setup
+wizard gets the user's browser location and loads real restaurant results from the
+TomTom-backed API. The backend does **not** place AI calls.
 
 ## Setup
 
@@ -15,26 +15,12 @@ Build with `npm run build`.
 `MAX_ROUTE_CANDIDATES` controls the maximum number of restaurant candidates whose
 routed distances are requested. It defaults to 40 to keep API use predictable.
 
-## Frontend mock restaurant data
+## Frontend restaurant discovery
 
-`src/data/restaurants.json` contains 100 restaurant entries and metadata describing
-the mock fields and name sources. The page imports this file directly.
-
-Each entry has `id`, `name`, `cuisine`, `rating`, `phone`, `distance`, `city`, and
-`sourceUrl`. `distance` is a made-up number in **miles**, not calculated from a
-location. Step one filters the list to restaurants whose `distance` is less than or
-equal to the selected radius, including custom miles. Use **Change distance** to
-adjust the radius; continuing from step one clears previous restaurant selections.
-An empty result shows a message and keeps Continue disabled. Cuisines and ratings
-are illustrative, phone numbers are fictional 555 numbers, and images remain blank
-placeholders.
-
-The original four restaurant names are preserved. Additional names come from
-[Downtown SLO's restaurant directory](https://downtownslo.com/shop-and-dine/dining/restaurants),
-[Pismo Beach's outdoor dining directory](https://experiencepismobeach.com/restaurants/outdoor-dining/),
-and its [visitor guide](https://experiencepismobeach.com/wp-content/uploads/2024/04/Pismo_Visitor_Guide_2023_11_16_1a5a3391-589b-4a3f-a0b8-d358e7ad1b14.pdf).
-This dataset is for a frontend demo, not a verified directory of currently operating
-businesses.
+The first wizard step requests a maximum distance. It sends that distance and the
+browser-provided coordinates to `POST /api/restaurants/discover`. The restaurant
+selection step renders the live API results, including routed distance, cuisines,
+and provider-supplied phone numbers. No bundled mock restaurant dataset is used.
 
 ## Backend API
 
