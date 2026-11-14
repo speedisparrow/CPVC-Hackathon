@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       action: `${baseUrl}/api/twilio/respond?callId=${encodeURIComponent(record.id)}`,
       method: "POST",
       speechTimeout: "auto",
-      timeout: 7,
+      timeout: 30,
       language: "en-US",
     });
     gather.say({ voice: "Polly.Joanna" }, opening);

@@ -1,4 +1,6 @@
 import twilio from "twilio";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 function readRequired(name: string) {
   const value = process.env[name]?.trim();
@@ -32,7 +34,24 @@ export function recipientIsAllowed(phoneNumber: string) {
   return allowed.includes(phoneNumber);
 }
 
+export function getTestRecipient() {
+  const configuredRecipient = process.env.TWILIO_TEST_RECIPIENT?.trim();
+  return configuredRecipient ? normalizeUsPhoneNumber(configuredRecipient) : null;
+}
+
 export function getPublicBaseUrl(request: Request) {
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const tunnelUrl = readFileSync(join(process.cwd(), ".tunnel-url"), "utf8").trim();
+      const parsedUrl = new URL(tunnelUrl);
+      if (parsedUrl.protocol === "https:" && parsedUrl.hostname.endsWith(".trycloudflare.com")) {
+        return parsedUrl.origin;
+      }
+    } catch {
+      // A tunnel is optional. Use APP_URL or the incoming request URL when absent.
+    }
+  }
+
   const configuredUrl = process.env.APP_URL?.trim();
   if (configuredUrl) return configuredUrl.replace(/\/$/, "");
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;

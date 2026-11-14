@@ -30,6 +30,7 @@ type TranscriptLine = { speaker: "assistant" | "restaurant"; text: string };
 
 type CallRecord = CallInput & {
   id: string;
+  providerCallId: string | null;
   twilioCallSid: string | null;
   status: CallStatus;
   result: CallResult | null;
@@ -79,6 +80,7 @@ export function createCall(input: CallInput) {
   const record: CallRecord = {
     ...input,
     id: `call_${randomUUID()}`,
+    providerCallId: null,
     twilioCallSid: null,
     status: "queued",
     result: null,
@@ -104,6 +106,11 @@ export function getPublicCall(record: CallRecord): PublicCallRecord {
 
 export function setTwilioCallSid(record: CallRecord, twilioCallSid: string) {
   record.twilioCallSid = twilioCallSid;
+  return touch(record);
+}
+
+export function setProviderCallId(record: CallRecord, providerCallId: string) {
+  record.providerCallId = providerCallId;
   return touch(record);
 }
 
