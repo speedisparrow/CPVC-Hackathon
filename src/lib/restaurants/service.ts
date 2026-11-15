@@ -1,4 +1,5 @@
 import { findNearbyRestaurants } from "./tomtom";
+import demoData from "@/data/restaurants.json";
 import type { Restaurant, RestaurantSearchInput, WaitTimeResult } from "./types";
 
 export function listCuisines(restaurants: Restaurant[]): string[] {
@@ -12,15 +13,36 @@ export function listCuisines(restaurants: Restaurant[]): string[] {
 }
 
 export async function discoverRestaurants(input: RestaurantSearchInput) {
-  const restaurants = await findNearbyRestaurants(
+  const isDemo = !process.env.TOMTOM_API_KEY?.trim();
+  const restaurants: Restaurant[] = isDemo
+    ? demoData.restaurants
+        .filter((restaurant) => restaurant.distance <= input.maxTravelDistanceMiles)
+        .map((restaurant) => ({
+          id: restaurant.id,
+          name: restaurant.name,
+          address: restaurant.city,
+          // Fixtures have no coordinates; these are placeholders, not business locations.
+          location: input.location,
+          cuisines: [restaurant.cuisine],
+          phone: restaurant.phone,
+          website: null,
+          photoUrl: null,
+          distanceMiles: restaurant.distance,
+          openingHours: null,
+          openingHoursSourceUrl: null,
+          timeZone: null,
+          isOpenNow: null,
+        }))
+        .sort((a, b) => a.distanceMiles - b.distanceMiles || a.name.localeCompare(b.name))
+    : await findNearbyRestaurants(
     input.location,
     input.maxTravelDistanceMiles,
   );
-  return { restaurants, cuisines: listCuisines(restaurants) };
+  return { restaurants, cuisines: listCuisines(restaurants), isDemo };
 }
 
 export async function filterRestaurants(input: RestaurantSearchInput) {
-  const { restaurants, cuisines } = await discoverRestaurants(input);
+  const { restaurants, cuisines, isDemo } = await discoverRestaurants(input);
   const selectedCuisine = input.cuisine?.toLocaleLowerCase();
   const filtered = selectedCuisine
     ? restaurants.filter((restaurant) =>
@@ -30,7 +52,7 @@ export async function filterRestaurants(input: RestaurantSearchInput) {
       )
     : restaurants;
 
-  return { restaurants: filtered, cuisines };
+  return { restaurants: filtered, cuisines, isDemo };
 }
 
 export function sortByWaitTime(

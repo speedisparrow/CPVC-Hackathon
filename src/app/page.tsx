@@ -6,6 +6,7 @@ import { useUserLocation } from "@/components/location-provider";
 import type { Restaurant } from "@/lib/restaurants/types";
 
 type DiscoverResponse = {
+  isDemo: boolean;
   restaurants: Restaurant[];
   cuisines: string[];
   error?: string;
@@ -18,6 +19,7 @@ export default function Home() {
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [selectedRestaurants, setSelectedRestaurants] = useState<string[]>([]);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [isDemo, setIsDemo] = useState(false);
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -71,6 +73,7 @@ export default function Home() {
       }
 
       setRestaurants(data.restaurants);
+      setIsDemo(data.isDemo);
       setCuisines(data.cuisines);
       setStep(2);
     } catch (error) {
@@ -154,7 +157,7 @@ export default function Home() {
             Hang tight.
           </h1>
           <p className="setup-description">
-            Please wait a moment while the calls go through.
+            Please wait a moment while the calls go through. (Just kidding they aren&apos;t)
           </p>
           <div className="setup-distance setup-restaurants">
             <div className="restaurant-list" aria-label="Confirmed restaurants">
@@ -172,9 +175,6 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <p className="restaurant-note">
-              Preview only. Calling isn’t connected yet.
-            </p>
             <button
               type="button"
               className="setup-back"
@@ -194,6 +194,11 @@ export default function Home() {
         <p className="setup-step" aria-live="polite">
           Step {Math.min(step, 3)} of 3
         </p>
+        {isDemo && (
+          <p className="restaurant-note" role="status">
+            Demo data: distances and phone numbers are fictional. Results are not based on your location.
+          </p>
+        )}
         <h1 id="setup-title">
           {step === 1
             ? "How far would you go?"

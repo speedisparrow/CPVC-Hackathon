@@ -1,4 +1,3 @@
-import overridesData from "@/data/opening-hours-overrides.json";
 import type { OpeningHours } from "./types";
 
 type HoursOverride = {
@@ -10,7 +9,7 @@ type HoursOverride = {
   verifiedOn: string;
 };
 
-const overrides: Record<string, HoursOverride> = overridesData;
+const overrides: Record<string, HoursOverride> = {};
 
 export function resolveOpeningHours(
   restaurantId: string,
