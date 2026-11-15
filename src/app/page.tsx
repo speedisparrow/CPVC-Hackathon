@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useUserLocation } from "@/components/location-provider";
 // import { RestaurantImage } from "@/components/restaurant-image";
 import type { Restaurant } from "@/lib/restaurants/types";
 
@@ -13,7 +12,7 @@ type DiscoverResponse = {
 };
 
 export default function Home() {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(1);
   const [distance, setDistance] = useState("5");
   const [customMiles, setCustomMiles] = useState("");
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
@@ -25,12 +24,7 @@ export default function Home() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const confirmationRef = useRef<HTMLDialogElement>(null);
   const waitingTitleRef = useRef<HTMLHeadingElement>(null);
-  const {
-    location,
-    status: locationStatus,
-    error: locationError,
-    requestLocation,
-  } = useUserLocation();
+  const location = { latitude: 35.2828, longitude: -120.6596 };
 
   const maxDistance = Number(distance === "custom" ? customMiles : distance);
   const filteredRestaurants = restaurants.filter(
@@ -47,12 +41,6 @@ export default function Home() {
   }, [step]);
 
   async function loadRestaurants() {
-    if (!location) {
-      setFetchError("Allow location access before searching for restaurants.");
-      requestLocation();
-      return;
-    }
-
     setIsLoading(true);
     setFetchError(null);
     setSelectedCuisines([]);
@@ -87,49 +75,6 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  if (step === 0) {
-    const locating = locationStatus === "requesting";
-    const hasLocation = locationStatus === "granted" && location !== null;
-
-    return (
-      <main className="setup-screen">
-        <section className="setup-wizard" aria-labelledby="location-title">
-          <p className="setup-step">Before we start</p>
-          <h1 id="location-title">Where are you starting from?</h1>
-          <p className="setup-description">
-            Share your location to find restaurants near you.
-          </p>
-          <div className="setup-distance location-actions">
-            {hasLocation ? (
-              <button type="button" onClick={() => setStep(1)}>
-                Continue
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={requestLocation}
-                disabled={locating}
-                aria-busy={locating}
-                aria-describedby="location-note"
-              >
-                {locating ? "Finding your location…" : "Use my location"}
-              </button>
-            )}
-            {locationError && !hasLocation && (
-              <p className="location-error" role="alert">
-                {locationError}
-              </p>
-            )}
-            <p className="restaurant-note" id="location-note">
-              Your coordinates are sent to the restaurant API only when you
-              search.
-            </p>
-          </div>
-        </section>
-      </main>
-    );
   }
 
   if (step === 4) {
@@ -224,7 +169,7 @@ export default function Home() {
               await loadRestaurants();
             }}
           >
-            <p className="restaurant-note">Using your current location.</p>
+            <p className="restaurant-note">Location is assumed to be San Luis Obispo.</p>
             <label htmlFor="distance">Miles away</label>
             <select
               id="distance"
